@@ -21,9 +21,9 @@ class Settings:
     # Groq key from https://console.groq.com/keys.
     groq_api_key: str = os.getenv("GROQ_API_KEY", "")
 
-    # Groq model to use. llama-3.3-70b-versatile is the default with 
-    # tool-calling support. You can swap in "openai/gpt-oss-20b" for more speed.
-    model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+    # Groq model to use. openai/gpt-oss-120b is the default with tool-calling
+    # support.
+    model: str = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 
     # Folder where Chroma stores its vector database on disk.
     chroma_path: str = os.getenv("CHROMA_PATH", "./chroma_db")
