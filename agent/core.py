@@ -49,15 +49,20 @@ class Agent:
         self.reset()
 
     def reset(self):
-        """Start a new conversation. (LTM Chroma kept?)."""
+        """
+        Start a new conversation. Long term memory is kept, but chat history
+        is cleared.
+        """
         self.messages = [{"role": "system",
                           "content": SYSTEM_PROMPT.format(today=date.today())}]
 
     def run(self, user_input: str) -> str:
-        """Answer user message, and use tools as needed."""
+        """
+        Answer user message, and use tools as needed.
+        """
         self.messages.append({"role": "user", "content": user_input})
 
-        for step in range(0, self.max_steps):
+        for step in range(1, self.max_steps + 1):
             reply = self.llm.chat(self.messages, self.tools.schemas())
 
             # Case 1: no tool requested -> this is the final answer.
