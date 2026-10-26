@@ -30,6 +30,6 @@ class Settings:
 
     # Safety: the most "think -> use tool -> think" rounds per question.
     # Stops the agent from looping forever (and burning tokens).
-    max_steps: int = int(os.getenv("MAX_STEPS", "6"))
+    max_steps: int = int(os.getenv("MAX_STEPS", "5"))
 
 settings = Settings()
