@@ -1,0 +1,16 @@
+# Secrets — never commit your API key
+.env
+
+# Local vector database (your personal notes)
+chroma_db/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Editors / OS
+.vscode/
+.DS_Store

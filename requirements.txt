@@ -1,0 +1,5 @@
+groq>=1.0
+chromadb>=1.0
+ddgs>=9.0
+python-dotenv>=1.0
+pytest>=8.0
