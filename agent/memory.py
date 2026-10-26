@@ -13,8 +13,10 @@ so there's no API key and no cost!
 """
 
 import uuid
+import hashlib
 from datetime import datetime
 import chromadb
+from ddgs.cli import text
 
 class Memory:
     def __init__(self, path: str = "./chroma_db", embedding_function=None,
@@ -32,9 +34,11 @@ class Memory:
     def add(self, text: str) -> str:
         """
         Store one note and return its id.
+        Saving the exact same text twice won't duplicate it.
         """
-        note_id = str(uuid.uuid4())
-        self.collection.add(
+        # Same text -> same id, so upsert overwrites instead of duplicating.
+        note_id = hashlib.md5(text.strip().lower().encode()).hexdigest()
+        self.collection.upsert(
             ids=[note_id],
             documents=[text],
             # Metadata is extra info stored alongside the text.
