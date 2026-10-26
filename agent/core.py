@@ -28,21 +28,28 @@ You have tools. Rules:
 - Use `calculator` for any arithmetic. Don't do math in your head.
 - Use `web_search` for current events or facts you're unsure about, and mention the source.
 - Use `save_note` when the user shares a lasting fact about themselves or asks you to remember something.
-- Use `search_notes` when the user refers to something from a past conversation.
+- Use `search_notes` when the user refers to something from a past conversation,
+  or asks about themselves. Never say you don't know something about the user
+  without checking memory first.
+- Notes from long-term memory may be provided as context; trust and use them.
 - If no tool is needed, just answer.
 Today's date is {today}. Keep answers short and clear."""
 
 class Agent:
-    def __init__(self, llm, tools, max_steps: int = 6, on_event=None):
+    def __init__(self, llm, tools, memory=None, max_steps: int = 6, on_event=None):
         """
         llm:       anything with a .chat(messages, tools) method (see llm.py)
         tools:     a ToolRegistry with all the tools the agent can use
+        memory:    optional Memory; relevant notes are looked up automatically
+                   every turn, so recall doesn't depend on the model choosing
+                   to call search_notes
         max_steps: maximum LLM calls per user question, set in .env
         on_event:  optional callback(kind, data) so the CLI can show what the
                    agent is doing (used by --verbose). Keeps printing out of here.
         """
         self.llm = llm
         self.tools = tools
+        self.memory = memory
         self.max_steps = max_steps
         # Note: no verbose, on_event will do nothing 
         self.on_event = on_event or (lambda kind, data: None)
@@ -61,8 +68,19 @@ class Agent:
         Answer user message, and use tools as needed.
         """
         start = len(self.messages)  # remember where this turn began
-        self.messages.append({"role": "user", "content": user_input})
         try:
+            # Pull related notes into context up front. Kept inside the turn so
+            # a failed turn rolls them back too.
+            if self.memory is not None:
+                notes = self.memory.search(user_input)
+                if notes:
+                    self.on_event("memory", {"notes": notes})
+                    self.messages.append({
+                        "role": "system",
+                        "content": "Possibly relevant notes from long-term memory:\n"
+                                   + "\n".join(f"- {n}" for n in notes),
+                    })
+            self.messages.append({"role": "user", "content": user_input})
             for step in range(1, self.max_steps + 1):
                 reply = self.llm.chat(self.messages, self.tools.schemas())
 
