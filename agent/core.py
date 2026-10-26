@@ -60,47 +60,53 @@ class Agent:
         """
         Answer user message, and use tools as needed.
         """
+        start = len(self.messages)  # remember where this turn began
         self.messages.append({"role": "user", "content": user_input})
+        try:
+            for step in range(1, self.max_steps + 1):
+                reply = self.llm.chat(self.messages, self.tools.schemas())
 
-        for step in range(1, self.max_steps + 1):
-            reply = self.llm.chat(self.messages, self.tools.schemas())
+                # Case 1: no tool requested -> this is the final answer.
+                if not reply.tool_calls:
+                    answer = reply.content or ""
+                    self.messages.append({"role": "assistant", "content": answer})
+                    return answer
 
-            # Case 1: no tool requested -> this is the final answer.
-            if not reply.tool_calls:
-                answer = reply.content or ""
-                self.messages.append({"role": "assistant", "content": answer})
-                return answer
+                # Case 2: the model wants tools. First record its request in the
+                # history (the API requires the request to appear before results).
+                self.messages.append({
+                    "role": "assistant",
+                    "content": reply.content or "",
+                    "tool_calls": [
+                        {"id": call.id, "type": "function",
+                        "function": {"name": call.function.name,
+                                    "arguments": call.function.arguments}}
+                        for call in reply.tool_calls
+                    ],
+                })
 
-            # Case 2: the model wants tools. First record its request in the
-            # history (the API requires the request to appear before results).
-            self.messages.append({
-                "role": "assistant",
-                "content": reply.content or "",
-                "tool_calls": [
-                    {"id": call.id, "type": "function",
-                     "function": {"name": call.function.name,
-                                  "arguments": call.function.arguments}}
-                    for call in reply.tool_calls
-                ],
-            })
+                # Run each requested tool and add its result, linked by tool_call_id
+                # so the model knows which result belongs to which request.
+                for call in reply.tool_calls:
+                    self.on_event("tool_call",
+                                {
+                                    "step": step, "name": call.function.name,
+                                    "arguments": call.function.arguments
+                                })
+                    result = self.tools.run(call.function.name,
+                                            call.function.arguments)
+                    self.on_event("tool_result", {"name": call.function.name,
+                                                "result": result})
+                    self.messages.append({"role": "tool", "tool_call_id": call.id,
+                                        "content": result})
 
-            # Run each requested tool and add its result, linked by tool_call_id
-            # so the model knows which result belongs to which request.
-            for call in reply.tool_calls:
-                self.on_event("tool_call",
-                              {
-                                  "step": step, "name": call.function.name,
-                                  "arguments": call.function.arguments
-                              })
-                result = self.tools.run(call.function.name,
-                                        call.function.arguments)
-                self.on_event("tool_result", {"name": call.function.name,
-                                              "result": result})
-                self.messages.append({"role": "tool", "tool_call_id": call.id,
-                                      "content": result})
-
-        # Case 3: the model never gave a final answer within max_steps.
-        fallback = ("I couldn't finish that within my step limit. "
-                    "Try a simpler or more specific question.")
-        self.messages.append({"role": "assistant", "content": fallback})
+            # Case 3: the model never gave a final answer within max_steps.
+            fallback = ("I couldn't finish that within my step limit. "
+                        "Try a simpler or more specific question.")
+            self.messages.append({"role": "assistant", "content": fallback})
+        except Exception as e:
+            # If the model or tools throw an error, don't crash the whole program.
+            # Instead, clear this turn and return a fallback answer.
+            self.messages = self.messages[:start]
+            return f"Something went wrong: {e.__class__.__name__}: {e}"
         return fallback
