@@ -1,0 +1,35 @@
+"""
+config.py — All the settings in one file.
+
+Values are from the local `.env` file (see `.env.example`).
+"""
+
+import os
+from dataclasses import dataclass
+from dotenv import load_dotenv
+
+# Read the .env file in the project root (if it exists) into os.environ.
+load_dotenv()
+
+@dataclass(frozen=True)
+class Settings:
+    """
+    Immutable bundle of settings.
+    `frozen=True` stops accidental changes at runtime.
+    """
+
+    # Groq key from https://console.groq.com/keys.
+    groq_api_key: str = os.getenv("GROQ_API_KEY", "")
+
+    # Groq model to use. llama-3.3-70b-versatile is the default with 
+    # tool-calling support. You can swap in "openai/gpt-oss-20b" for more speed.
+    model: str = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+
+    # Folder where Chroma stores its vector database on disk.
+    chroma_path: str = os.getenv("CHROMA_PATH", "./chroma_db")
+
+    # Safety: the most "think -> use tool -> think" rounds per question.
+    # Stops the agent from looping forever (and burning tokens).
+    max_steps: int = int(os.getenv("MAX_STEPS", "6"))
+
+settings = Settings()
