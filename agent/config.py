@@ -28,6 +28,10 @@ class Settings:
     # Folder where Chroma stores its vector database on disk.
     chroma_path: str = os.getenv("CHROMA_PATH", "./chroma_db")
 
+    # Notes further than this from the question aren't auto-added to context.
+    # Lower = stricter. Tune with --verbose if recall feels too loose or tight.
+    memory_max_distance: float = float(os.getenv("MEMORY_MAX_DISTANCE", "1.5"))
+
     # Safety: the most "think -> use tool -> think" rounds per question.
     # Stops the agent from looping forever (and burning tokens).
     max_steps: int = int(os.getenv("MAX_STEPS", "5"))

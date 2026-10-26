@@ -28,6 +28,8 @@ def print_event(kind: str, data: dict) -> None:
     elif kind == "tool_result":
         preview = data["result"].replace("\n", " ")
         print(f"TOOL_RESULT: {preview[:150]}{'…' if len(preview) > 150 else ''}")
+    elif kind == "memory":
+        print(f"MEMORY: {len(data['notes'])} note(s) added to context")
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Chat with Tiny Agent.")
@@ -44,7 +46,9 @@ def main() -> None:
 
     memory = Memory(path=settings.chroma_path)
     tools = build_tools(memory)
-    agent = Agent(llm, tools, max_steps=settings.max_steps,
+    agent = Agent(llm, tools, memory=memory,
+                  memory_max_distance=settings.memory_max_distance,
+                  max_steps=settings.max_steps,
                   on_event=print_event if args.verbose else None)
 
     print(f"Tiny Agent ({settings.model}) — {memory.count()} notes in memory.")
