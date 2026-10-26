@@ -46,7 +46,9 @@ def main() -> None:
 
     memory = Memory(path=settings.chroma_path)
     tools = build_tools(memory)
-    agent = Agent(llm, tools, memory=memory, max_steps=settings.max_steps,
+    agent = Agent(llm, tools, memory=memory,
+                  memory_max_distance=settings.memory_max_distance,
+                  max_steps=settings.max_steps,
                   on_event=print_event if args.verbose else None)
 
     print(f"Tiny Agent ({settings.model}) — {memory.count()} notes in memory.")

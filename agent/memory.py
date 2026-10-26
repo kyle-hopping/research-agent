@@ -46,16 +46,25 @@ class Memory:
         )
         return note_id
 
-    def search(self, query: str, k: int = 3) -> list[str]:
+    def search(self, query: str, k: int = 3,
+               max_distance: float | None = None) -> list[str]:
         """
         Return up to k notes most similar in meaning to the query.
+
+        max_distance drops weak matches. Chroma's default distance is squared
+        L2; on MiniLM's normalized vectors that's 2 - 2*cosine, so 0 is
+        identical and ~1.0 is cosine 0.5. None keeps the top k regardless.
         """
         count = self.collection.count()
         if count == 0:
             return []
-        results = self.collection.query(query_texts=[query], n_results=min(k, count))
+        results = self.collection.query(query_texts=[query], n_results=min(k, count),
+                                        include=["documents", "distances"])
         # Chroma returns a list per query; we sent one query, so take [0].
-        return results["documents"][0]
+        docs, distances = results["documents"][0], results["distances"][0]
+        if max_distance is None:
+            return docs
+        return [d for d, dist in zip(docs, distances) if dist <= max_distance]
 
     def count(self) -> int:
         return self.collection.count()

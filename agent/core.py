@@ -36,13 +36,16 @@ You have tools. Rules:
 Today's date is {today}. Keep answers short and clear."""
 
 class Agent:
-    def __init__(self, llm, tools, memory=None, max_steps: int = 6, on_event=None):
+    def __init__(self, llm, tools, memory=None, memory_max_distance: float | None = None,
+                 max_steps: int = 6, on_event=None):
         """
         llm:       anything with a .chat(messages, tools) method (see llm.py)
         tools:     a ToolRegistry with all the tools the agent can use
         memory:    optional Memory; relevant notes are looked up automatically
                    every turn, so recall doesn't depend on the model choosing
                    to call search_notes
+        memory_max_distance: cutoff for those automatic lookups (see
+                   Memory.search); None adds the top matches unfiltered
         max_steps: maximum LLM calls per user question, set in .env
         on_event:  optional callback(kind, data) so the CLI can show what the
                    agent is doing (used by --verbose). Keeps printing out of here.
@@ -50,6 +53,7 @@ class Agent:
         self.llm = llm
         self.tools = tools
         self.memory = memory
+        self.memory_max_distance = memory_max_distance
         self.max_steps = max_steps
         # Note: no verbose, on_event will do nothing 
         self.on_event = on_event or (lambda kind, data: None)
@@ -72,7 +76,8 @@ class Agent:
             # Pull related notes into context up front. Kept inside the turn so
             # a failed turn rolls them back too.
             if self.memory is not None:
-                notes = self.memory.search(user_input)
+                notes = self.memory.search(user_input,
+                                           max_distance=self.memory_max_distance)
                 if notes:
                     self.on_event("memory", {"notes": notes})
                     self.messages.append({
