@@ -1,5 +1,5 @@
 """
-core.py — The agent loop
+core.py — The agent loop.
 
 The agent is essentially an LLM in a loop that can use tools:
 
