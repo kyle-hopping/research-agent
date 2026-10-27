@@ -41,7 +41,6 @@ class GroqLLM:
         )
         return response.choices[0].message
 
-
 class ToolCallRejected(Exception):
     """
     The model tried to call a tool that wasn't allowed: one that doesn't exist,
@@ -55,7 +54,6 @@ class ToolCallRejected(Exception):
     def __init__(self, generation: str):
         super().__init__(f"model made an invalid tool call: {generation}")
         self.generation = generation
-
 
 class AsyncGroqLLM:
     """
