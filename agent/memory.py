@@ -12,11 +12,9 @@ Chroma's default embedding model (all-MiniLM-L6-v2) runs locally on your CPU,
 so there's no API key and no cost!
 """
 
-import uuid
 import hashlib
 from datetime import datetime
 import chromadb
-from ddgs.cli import text
 
 class Memory:
     def __init__(self, path: str = "./chroma_db", embedding_function=None,
