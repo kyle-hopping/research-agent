@@ -36,4 +36,22 @@ class Settings:
     # Stops the agent from looping forever (and burning tokens).
     max_steps: int = int(os.getenv("MAX_STEPS", "5"))
 
+    # Multi-agent research team (research.py)
+    # Model for the team. Defaults to GROQ_MODEL. A model with a higher
+    # tokens-per-minute limit hits fewer rate limits, since several agents
+    # share one quota.
+    team_model: str = os.getenv("TEAM_MODEL", "") or os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+
+    # How many researcher agents may call Groq at the same moment.
+    team_max_concurrency: int = int(os.getenv("TEAM_MAX_CONCURRENCY", "3"))
+
+    # Seconds before a researcher is cancelled and reported as failed.
+    researcher_timeout: float = float(os.getenv("RESEARCHER_TIMEOUT", "120"))
+
+    # Tool rounds (web searches) each researcher gets before it must answer.
+    researcher_max_steps: int = int(os.getenv("RESEARCHER_MAX_STEPS", "4"))
+
+    # How many times the writer may revise after the critic finds problems.
+    max_revisions: int = int(os.getenv("MAX_REVISIONS", "1"))
+
 settings = Settings()
