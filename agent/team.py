@@ -43,7 +43,8 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 from agent.async_core import AsyncAgent
-from agent.sources import SourceRegistry, cited_ids, render_sources_section
+from agent.sources import (SourceRegistry, cited_ids, normalize_citations,
+                           render_sources_section)
 from agent.tools import ToolRegistry, _duckduckgo_search
 
 EventCallback = Callable[[str, dict], None]
@@ -65,6 +66,7 @@ Cover each of these dimensions: {dimensions}.
 Use web_search with short, focused queries. Prefer official docs and GitHub.
 Rules:
 - End every factual claim with the id of the search result that supports it, e.g. [S3].
+  Use plain square brackets exactly like [S3], not 【S3】 or any other style.
 - Only use ids that appeared in YOUR search results. Never invent an id.
 - If you can't find something, write "not found" for that dimension. Don't guess.
 Reply with concise bullet notes grouped by dimension (under 250 words)."""
@@ -77,6 +79,7 @@ in Markdown:
 4. "When to choose which": short, practical guidance.
 Rules:
 - Use ONLY facts from the notes, and keep their [S#] citation on every claim.
+  Write citations with plain square brackets exactly like [S3], not 【S3】.
 - If a subject's research failed, say so plainly instead of guessing.
 - Do not write a sources list; it is added automatically."""
 
@@ -307,6 +310,9 @@ class ResearchTeam:
                     # its result is simply ignored. Threads can't be killed.)
                     notes = await asyncio.wait_for(agent.run(subject.question),
                                                    self.researcher_timeout)
+                    # The prompt asks for [S3], but models don't always
+                    # listen, so the code makes sure.
+                    notes = normalize_citations(notes)
                     finding = Finding(subject.name, notes, True,
                                       time.perf_counter() - started)
                 except asyncio.TimeoutError:
@@ -345,7 +351,8 @@ class ResearchTeam:
                    f"Research notes:\n\n{notes}")
         messages = [{"role": "system", "content": WRITER_PROMPT},
                     {"role": "user", "content": content}]
-        return (await self.llm.chat(messages, None)).content or ""
+        draft = (await self.llm.chat(messages, None)).content or ""
+        return normalize_citations(draft)
 
     async def _revise(self, draft: str, critique: Critique) -> str:
         self._emit("phase", "writer", message=f"revising ({len(critique.issues)} issue(s))")
@@ -354,7 +361,8 @@ class ResearchTeam:
         messages = [{"role": "system", "content": WRITER_PROMPT},
                     {"role": "assistant", "content": draft},
                     {"role": "user", "content": REVISE_PROMPT.format(issues=issues)}]
-        return (await self.llm.chat(messages, None)).content or draft
+        revised = (await self.llm.chat(messages, None)).content or draft
+        return normalize_citations(revised)
 
     # 4. Critique Stage
     async def _critique(self, draft: str, sources: SourceRegistry) -> Critique:

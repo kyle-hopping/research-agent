@@ -69,6 +69,30 @@ class SourceRegistry:
 _BRACKETS = re.compile(r"\[([^\[\]]+)\]")
 _ID = re.compile(r"\bS\d+\b")
 
+# gpt-oss (and some other models) were trained to cite with full-width
+# "lenticular" brackets, sometimes with line info: 【S1】 or 【S1†L4-L9】.
+# Matches those, plus other full-width bracket styles.
+_WIDE_BRACKETS = re.compile(r"[【［〔〖]([^【】［］〔〕〖〗]*)[】］〕〗]")
+# Matches ASCII brackets that carry the same † line info: [S1†L4-L9].
+_DAGGER_BRACKETS = re.compile(r"\[([^\[\]]*†[^\[\]]*)\]")
+
+def normalize_citations(text: str) -> str:
+    """
+    Rewrite any citation style the model invents into our standard form:
+    【S1】 -> [S1], 【S1†L4-L9】 -> [S1], 【S2】【S5】 -> [S2][S5].
+
+    The rest of the code (cited_ids, the critic, the Sources list) only
+    understands [S1]. Normalizing LLM output once, where it enters the
+    system, is more reliable than teaching every function every format.
+    Brackets with no source id inside are left alone.
+    """
+    def to_ascii(match: re.Match) -> str:
+        ids = _ID.findall(match.group(1))
+        return f"[{', '.join(ids)}]" if ids else match.group(0)
+
+    text = _WIDE_BRACKETS.sub(to_ascii, text)
+    return _DAGGER_BRACKETS.sub(to_ascii, text)
+
 def cited_ids(text: str) -> list[str]:
     """
     Every source id cited in `text`, in order of first appearance, no repeats.
