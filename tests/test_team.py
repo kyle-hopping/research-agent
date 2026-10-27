@@ -15,7 +15,8 @@ import groq
 import httpx
 from agent.async_core import AsyncAgent
 from agent.llm import AsyncGroqLLM, ToolCallRejected
-from agent.sources import SourceRegistry, cited_ids, render_sources_section
+from agent.sources import (SourceRegistry, cited_ids, normalize_citations,
+                           render_sources_section)
 from agent.team import ResearchTeam, build_research_tools, parse_json
 from agent.tools import ToolRegistry
 
@@ -499,3 +500,35 @@ def test_researchers_are_numbered_in_plan_order():
     assert assigned == [(1, "Alpha"), (2, "Beta"), (3, "Gamma")]
     started = {d["agent"] for k, d in events if k == "phase" and d.get("message") == "started"}
     assert started == {"researcher 1 (Alpha)", "researcher 2 (Beta)", "researcher 3 (Gamma)"}
+
+
+# Citation formats (the "no Sources list" bug: gpt-oss cites with 【S1】)
+
+def test_normalize_citations_handles_model_styles():
+    """Full-width and dagger-style citations become plain [S#]; other text is untouched."""
+    text = "a【S1】 b【S2】【S5】 c【S3†L4-L9】 d ［S4］ e [S6†L1] f [S7] g【note】 h 【4†source】"
+    assert normalize_citations(text) == (
+        "a[S1] b[S2][S5] c[S3] d [S4] e [S6] f [S7] g【note】 h 【4†source】")
+
+
+def test_lenticular_citations_still_get_sources_and_fact_check():
+    """
+    Reproduces the dogs-vs-cats run: the writer cites with 【S1】. The report
+    must still get a Sources list, and the critic must still see the sources.
+    """
+    class LenticularWriterLLM(TeamLLM):
+        async def chat(self, messages, tools=None, json_mode=False):
+            if "WRITER" in messages[0]["content"]:
+                self.calls.append(("WRITER", messages))
+                return reply("# Draft report\nAlpha uses graphs【S1】. Beta is fast【S2】.")
+            return await super().chat(messages, tools, json_mode)
+
+    llm = LenticularWriterLLM(research_delay=0.01)
+    report = run_team(llm)
+
+    assert "【" not in report.markdown and "Alpha uses graphs[S1]" in report.markdown
+    assert "## Sources" in report.markdown
+    assert "https://docs.example/" in report.markdown.split("## Sources")[1]
+    critic_prompt = next(m for r, m in llm.calls if r == "CRITIC")[1]["content"]
+    assert "(no sources cited)" not in critic_prompt and "[S1]" in critic_prompt
+
