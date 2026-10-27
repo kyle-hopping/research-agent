@@ -288,8 +288,8 @@ class ResearchTeam:
         # the rest wait their turn. This protects the shared rate limit.
         semaphore = asyncio.Semaphore(self.max_concurrency)
 
-        async def research(subject: Subject) -> Finding:
-            name = f"researcher:{subject.name}"
+        async def research(number: int, subject: Subject) -> Finding:
+            name = f"researcher {number} ({subject.name})"
             async with semaphore:
                 # The timer starts after we get a slot, so time spent waiting
                 # in the queue doesn't count against the researcher's timeout.
@@ -319,10 +319,19 @@ class ResearchTeam:
                            error=finding.error)
                 return finding
 
+        # Researchers are numbered 1, 2, 3... in plan order, so the log says
+        # which one is which before they all start talking at once.
+        self._emit("phase", "team", message=f"starting {len(plan.subjects)} researcher(s), "
+                                            f"up to {self.max_concurrency} at once")
+        for number, subject in enumerate(plan.subjects, start=1):
+            self._emit("assign", "team", number=number, subject=subject.name)
+
         # Gather() starts every researcher now and waits for all of them.
         # Results come back in the same order as plan.subjects. research()
         # catches its own errors, so one failure can't cancel the others.
-        return list(await asyncio.gather(*(research(s) for s in plan.subjects)))
+        return list(await asyncio.gather(*(
+            research(number, subject)
+            for number, subject in enumerate(plan.subjects, start=1))))
 
     # 3. Write Stage
     async def _write(self, request: str, plan: Plan, findings: list[Finding]) -> str:

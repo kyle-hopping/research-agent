@@ -28,19 +28,32 @@ class TracePrinter:
     researchers running at once, their lines interleave, which is the
     visible proof that they're running concurrently.
     """
+    WIDTH = 28  # width of the "who" column
+
     def __init__(self) -> None:
         self.start = time.perf_counter()
 
     def __call__(self, kind: str, data: dict) -> None:
         t = f"[{time.perf_counter() - self.start:5.1f}s]"
-        who = f"{data.get('agent', ''):<24}"
+        agent = data.get("agent", "")
+        # keep columns aligned for long subject names
+        if len(agent) > self.WIDTH: 
+            agent = agent[: self.WIDTH - 2] + "…)"
+        who = f"{agent:<{self.WIDTH}}"
+        blank = " " * self.WIDTH
         if kind == "phase":
             print(f"{t} {who} {data['message']}")
         elif kind == "plan":
             print(f"{t} {who} subjects: {', '.join(data['subjects'])}")
-            print(f"{t} {'':<24} dimensions: {', '.join(data['dimensions'])}")
+            print(f"{t} {blank} dimensions: {', '.join(data['dimensions'])}")
+        elif kind == "assign":
+            print(f"{t} {who} researcher {data['number']} → {data['subject']}")
         elif kind == "tool_call":
             print(f"{t} {who} → {data['name']}({data['arguments']})")
+        elif kind == "tool_rejected":
+            print(f"{t} {who} invalid tool call rejected, retrying: {data['generation'][:80]}")
+        elif kind == "rate_limited":
+            print(f"{t} {who} rate limited, retrying in {data['retry_after']}s")
         elif kind == "step_limit":
             print(f"{t} {who} tool budget used up, writing up findings")
         elif kind == "finding":
@@ -67,8 +80,11 @@ def main() -> None:
                         help="researchers running at once (default from .env)")
     parser.add_argument("--out", default="reports", help="folder for the report")
     args = parser.parse_args()
+    # One printer for everything, so all events share the same start time.
+    printer = TracePrinter() if args.verbose else None
     try:
-        llm = AsyncGroqLLM(api_key=settings.groq_api_key, model=settings.team_model)
+        llm = AsyncGroqLLM(api_key=settings.groq_api_key, model=settings.team_model,
+                           on_event=printer)
     except ValueError as e:
         sys.exit(f"Setup error: {e}")
 
@@ -78,7 +94,7 @@ def main() -> None:
         researcher_timeout=settings.researcher_timeout,
         researcher_max_steps=settings.researcher_max_steps,
         max_revisions=settings.max_revisions,
-        on_event=TracePrinter() if args.verbose else None,
+        on_event=printer,
     )
 
     print(f"Research team ({settings.team_model}), up to {args.concurrency} researchers at once.\n")
