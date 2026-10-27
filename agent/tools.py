@@ -75,7 +75,9 @@ _ALLOWED_OPS = {
 
 def safe_eval(expression: str) -> float:
     def _eval(node):
-        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        # bool is a subclass of int, so True/False must be rejected explicitly.
+        if (isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+                and not isinstance(node.value, bool)):
             return node.value
         if isinstance(node, ast.BinOp) and type(node.op) in _ALLOWED_OPS:
             if isinstance(node.op, ast.Pow) and abs(_eval(node.right)) > 100:
