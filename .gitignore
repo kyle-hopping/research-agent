@@ -4,6 +4,9 @@
 # Local vector database (your personal notes)
 chroma_db/
 
+# Generated research reports
+reports/
+
 # Python
 .venv/
 venv/
