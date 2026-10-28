@@ -1,4 +1,4 @@
-# 🤖 Tiny Agent
+# 🤖 Research Agent
 
 A minimal, tool-using AI agent built **from scratch** in Python — no agent framework. It reasons with an LLM on **Groq**, uses tools (web search, calculator, clock), and has **long-term semantic memory** stored locally in **Chroma**.
 
@@ -48,7 +48,7 @@ Agent: 441.
 ## Project structure
 
 ```
-tiny-agent/
+research-agent/
 ├── agent/
 │   ├── config.py    # settings loaded from .env
 │   ├── llm.py       # Groq wrapper (one method: chat)
@@ -70,8 +70,8 @@ tiny-agent/
 Requires Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/kyle-hopping/tiny-agent.git
-cd tiny-agent
+git clone https://github.com/kyle-hopping/research-agent.git
+cd research-agent
 python -m venv .venv
 # Windows:      .venv\Scripts\Activate.ps1
 # macOS/Linux:  source .venv/bin/activate
